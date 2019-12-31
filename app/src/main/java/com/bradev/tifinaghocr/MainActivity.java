@@ -1,6 +1,7 @@
 package com.bradev.tifinaghocr;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -11,6 +12,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,15 +37,22 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imageView;
     private ImageButton editBtn;
     private TextView resultText;
+    private LinearLayout resultLayout, initLayout;
     private Uri imageUri;
+    private ProgressDialog loading;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        setTitle("OCR");
         imageView = findViewById(R.id.imageView);
         resultText = findViewById(R.id.result);
         editBtn = findViewById(R.id.edit_btn);
+        resultLayout = findViewById(R.id.result_zone);
+        initLayout = findViewById(R.id.init_text);
+        loading = new ProgressDialog(this);
+        loading.setMessage("Loading");
     }
 
     @Override
@@ -60,14 +69,14 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
             CropImage.ActivityResult result = CropImage.getActivityResult(data);
             try {
+                loading.show();
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), result.getUri());
                 Bitmap resized = Bitmap.createScaledBitmap(bitmap, 64, 64, true);
                 imageView.setImageBitmap(resized);
-                imageView.setVisibility(View.VISIBLE);
-                editBtn.setVisibility(View.VISIBLE);
                 String s = bitmapToMatrix(resized);
                 requestResult(s);
             } catch (IOException e) {
+                loading.dismiss();
                 e.printStackTrace();
             }
         }
@@ -97,16 +106,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestResult(final String data){
-        String url = "http://192.168.10.6:8000/api/";
+        String url = "http://192.168.43.197:5000/api";
         StringRequest stringRequest = new StringRequest(Request.Method.POST, url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 resultText.setText(response);
+                initLayout.setVisibility(View.GONE);
+                resultLayout.setVisibility(View.VISIBLE);
+                editBtn.setVisibility(View.VISIBLE);
+                loading.dismiss();
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Toast.makeText(getApplicationContext(), "Connection error !!", Toast.LENGTH_SHORT).show();
+                loading.dismiss();
                 Log.e("Error: ", error.toString());
             }
         }){
